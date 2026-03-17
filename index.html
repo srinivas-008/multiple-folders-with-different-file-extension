@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document QA Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            resize: none;
+            font-size: 16px;
+        }
+        .response-container {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            display: none; /* Initially hidden */
+        }
+        .loading {
+            display: none; /* Initially hidden */
+            margin-top: 10px;
+        }
+        .uploaded {
+            color: green;
+            margin-top: 10px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #007bff;
+            border-top: 3px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .success-icon {
+            color: green;
+            font-size: 24px;
+            display: none; /* Initially hidden */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Document QA Chatbot</h1>
+    <div class="container">
+        <div class="form-group">
+            <input type="file" id="pdfFiles" webkitdirectory multiple accept=".pdf">
+            <button id="uploadBtn" class="btn">Upload Folder</button>
+            <div id="uploadStatus" class="uploaded"></div>
+            <div id="uploadLoading" class="loading">
+                <span class="spinner"></span> Processing...
+            </div>
+            <span class="success-icon" id="successIcon"><i class="fas fa-check-circle"></i> Files uploaded successfully!</span>
+        </div>
+        <div class="form-group">
+            <textarea id="question" placeholder="Ask your question..."></textarea>
+            <button id="askBtn" class="btn">Ask</button>
+            <div id="loading" class="loading">
+                <span class="spinner"></span> Loading...
+            </div>
+        </div>
+        <div id="response" class="response-container"></div>
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadLoading = document.getElementById('uploadLoading');
+            const successIcon = document.getElementById('successIcon');
+            const pdfFiles = document.getElementById('pdfFiles').files;
+
+            if (pdfFiles.length === 0) {
+                uploadStatus.innerText = "Please select a folder.";
+                uploadStatus.className = "error";
+                successIcon.classList.add('hidden'); // Hide success icon
+                return;
+            }
+
+            const formData = new FormData();
+            for (const file of pdfFiles) {
+                formData.append('pdf_files', file);
+            }
+
+            // Show loading spinner
+            uploadLoading.style.display = "block";
+            successIcon.classList.add('hidden'); // Hide success icon
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                uploadLoading.style.display = "none"; // Hide loading spinner
+                uploadStatus.innerText = data.message || data.error;
+                uploadStatus.className = data.message ? "uploaded" : "error";
+                
+                if (data.message) {
+                    successIcon.classList.remove('hidden'); // Show success icon
+                } else {
+                    successIcon.classList.add('hidden'); // Hide success icon
+                }
+            })
+            .catch(error => {
+                uploadLoading.style.display = "none"; // Hide loading spinner
+                uploadStatus.innerText = "An error occurred during upload.";
+                uploadStatus.className = "error";
+                successIcon.classList.add('hidden'); // Hide success icon
+            });
+        });
+
+        document.getElementById('askBtn').addEventListener('click', function() {
+            const question = document.getElementById('question').value;
+            const responseContainer = document.getElementById('response');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+
+            responseContainer.style.display = "none"; // Hide previous response
+            loading.style.display = "block"; // Show loading
+
+            fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ 'question': question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = "none"; // Hide loading
+                if (data.answer) {
+                    responseContainer.innerHTML = "<strong>Answer:</strong> " + data.answer + "<br><strong>Sources:</strong> " + data.sources;
+                    responseContainer.style.display = "block"; // Show response
+                    error.innerText = ""; // Clear error
+                } else {
+                    error.innerText = data.error || "An unexpected error occurred.";
+                    responseContainer.style.display = "none"; // Hide response
+                }
+            })
+            .catch(err => {
+                loading.style.display = "none"; // Hide loading
+                error.innerText = "An error occurred while asking the question.";
+                responseContainer.style.display = "none"; // Hide response
+            });
+        });
+    </script>
+</body>
+</html>
