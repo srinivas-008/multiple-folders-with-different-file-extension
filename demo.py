@@ -4,15 +4,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-
-# ✅ FIXED: use HuggingFace embeddings instead of Google embeddings
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-
 import docx
 import csv
 import pandas as pd
@@ -30,9 +26,6 @@ PREDEFINED_FOLDER_PATHS = [
     r"C:\Users\monis\Downloads\Project-20260317T153620Z-1-001\Project\RAG - LLM\Folder 1",
     r"C:\Users\monis\Downloads\Project-20260317T153620Z-1-001\Project\RAG - LLM\Folder 2"
 ]
-
-# ------------------ FILE READERS ------------------
-
 def extract_text_from_pdf(pdf_path):
     text = ""
     reader = PdfReader(pdf_path)
@@ -68,9 +61,6 @@ def extract_text_from_pptx(path):
             if hasattr(shape, "text"):
                 text += shape.text + "\n"
     return text
-
-# ------------------ TEXT PROCESSING ------------------
-
 def get_text_chunks(text):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=10000,
@@ -114,9 +104,6 @@ def extract_text_from_folders(paths):
                         })
 
     return all_chunks
-
-# ------------------ VECTOR DB ------------------
-
 def get_vector_store(chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="all-MiniLM-L6-v2"
@@ -127,9 +114,7 @@ def get_vector_store(chunks):
 
     db = FAISS.from_texts(texts, embedding=embeddings, metadatas=metas)
     db.save_local("faiss_index")
-
-# ------------------ QA ------------------
-
+    
 def get_chain():
     prompt = PromptTemplate(
         template="""
@@ -175,15 +160,11 @@ def user_input(question):
 
     return response["output_text"], ", ".join(sources)
 
-# ------------------ PRELOAD ------------------
-
 def preload_data():
     print("Loading files...")
     chunks = extract_text_from_folders(PREDEFINED_FOLDER_PATHS)
     get_vector_store(chunks)
     print("Done.")
-
-# ------------------ FLASK ------------------
 
 @app.route("/")
 def index():
